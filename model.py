@@ -55,26 +55,30 @@ class MLSTM(nn.Module):
     def get_outputs1(self, x):
         all_states, _ = self.LSTM(x)
         tmp = list(map(self.get_output1, all_states))
-        all_outputs = tmp[0]
-        return all_outputs[-1, :, :]
+        all_outputs = torch.cat(tmp)
+        all_outputs = all_outputs.reshape(2, len(tmp[0]), 1)
+        return all_outputs[:, -1, :]
 
     def get_outputs2(self, x):
-        all_states, _, _ = self.LSTM(x)
-        all_outputs = torch.tensor(list(map(self.get_output2, all_states)))
-        return all_outputs[-1, :, :]
+        all_states, _ = self.LSTM(x)
+        tmp = list(map(self.get_output2, all_states))
+        all_outputs = torch.cat(tmp)
+        all_outputs = all_outputs.reshape(2, len(tmp[0]), 1)
+        return all_outputs[:, -1, :]
 
     def get_outputs(self, x):
-        output1 = self.get_output1(x)
-        output2 = self.get_output2(x)
+        output1 = self.get_outputs1(x)
+        output2 = self.get_outputs2(x)
         output = torch.stack((output1, output2), 1)
         return output
 
     def loss_func(self, x, label, rank):
         # [seq_length x batch_size x input_dim)
+        label = label.reshape(2,1)
         output1 = self.get_outputs1(x)
         output2 = self.get_outputs2(x)
-        pairwise_ranking1 = F.cross_entropy(output1, label, reduction='mean') + F.cross_entropy(output1[0] - output1[1], rank)
-        pairwise_ranking2 = F.cross_entropy(output2, label, reduction='mean') + F.cross_entropy(output2[0] - output2[1], rank)
+        pairwise_ranking1 = F.binary_cross_entropy_with_logits(output1, label.float(), reduction='mean') + F.binary_cross_entropy_with_logits(output1[0] - output1[1], rank)
+        pairwise_ranking2 = F.binary_cross_entropy_with_logits(output2, label.float(), reduction='mean') + F.binary_cross_entropy_with_logits(output2[0] - output2[1], rank)
 
         pairwise_ranking = pairwise_ranking2 + pairwise_ranking1
 

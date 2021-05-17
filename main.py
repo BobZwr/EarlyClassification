@@ -16,13 +16,13 @@ device = torch.device('cuda:6' if torch.cuda.is_available() else 'cpu')
 def pair_rank(i, j):
     y_i = train_label[i][0]
     y_j = train_label[j][0]
-    paired_label = [y_i, y_j]
+    paired_label = [[y_i], [y_j]]
     paired_data = [train_data[i], train_data[j]]
-    rank = [0.5]
+    rank = 0.5
     if y_i > y_j or train_label[i][1] < train_label[j][1]:
-        rank = [1]
+        rank = 1.0
     if y_i < y_j or train_label[i][1] > train_label[j][1]:
-        rank = [0]
+        rank = 0.0
 
     return paired_data, paired_label, rank
 
@@ -35,7 +35,7 @@ def train(model, x, y, lr, epochs, batch_size):
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=1e-8)
     for epoch in tqdm(range(epochs)):
         x, y = shuffle(x, y)
-        for i in range(len(x)):
+        for i in tqdm(range(len(x))):
             current_data = []
             current_label = []
             current_rank = []
@@ -49,9 +49,9 @@ def train(model, x, y, lr, epochs, batch_size):
 
             dataset = MyDataset(current_data, current_label, current_rank)
             dataloader = DataLoader(dataset, batch_size)
-            for batch_idx, batch in enumerate(dataloader):
+            for batch_idx, batch in tqdm(enumerate(dataloader), leave= False, desc='dataloader'):
                 input_x, input_y, rank = tuple(t.to(device) for t in batch)
-                print(input_x.shape)
+                input_x = input_x[0]
                 loss, _, _, _ = model(input_x, input_y, rank)
                 optimizer.zero_grad()
                 loss.backward()
